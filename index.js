@@ -4,25 +4,20 @@ const body_parser = require('body-parser');
 const path = require('path');
 const PORT = process.env.PORT || 5000;
 
+// SET PATHS
 express()
   .use(express.static(path.join(__dirname, 'public')))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')
   .get('/', (req, res) => res.render('pages/index'))
-  .get('/get_reviews', function(request, response) {
-    get_reviews(request, response);
-  })
-  .get('/get_colleges', function(request, response) {
-    get_colleges(request, response);
-  })
-  .get('/get_courses', function(request, response) {
-    get_courses(request, response);
-  })
-  .post('/post_review', function (request, response) {
-    post_review(request, response);
-  })
+  .get('/get_reviews', get_reviews)
+  .get('/get_colleges', get_colleges)
+  .get('/get_courses', get_courses)
+  .get('/get_course_by_id', get_course_by_id)
+  .post('/post_review', post_review)
   .listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
+  //The following functions are GET functions of the routes
   function get_reviews(request, response) {
     /***********************************
      *  GET_REVIEWS
@@ -55,7 +50,6 @@ function get_colleges(request, response) {
      * extracts information about all the colleges. We put the
      * result in a JSON and send it using response.
      ****************************************/
-    //TODO: call database and get result
     console.log("Getting Colleges...");
     pg.connect(process.env.DATABASE_URL, function(err, client, done) {
       client.query('SELECT college_code, college_name FROM college', function(err, result) {
@@ -64,7 +58,6 @@ function get_colleges(request, response) {
         else {response.status(200).json(result.rows)}
       });
     });
-    response.status(500).json({success: false, data: null});
 }
 
 function get_courses(request, response) {
@@ -88,6 +81,28 @@ function get_courses(request, response) {
   });
 }
 
+function get_course_by_id(request, response) {
+  /******************************************
+   * GET_COURSE_BY_ID
+   * args:    request: The request sent to the server
+   *          response: The response to be sent back
+   * returns: Nothing
+   * desc:    This function will extract the course_id from
+   *          the request and then call get_course_from_db using
+   *          that id. We will give it a callback to return the
+   *          the rows that were received from the database.
+   ***************************************/
+  let course_id = request.query.course_id;
+  get_course_from_db(course_id, function(error, result) {
+      if (error || result == null) {
+        response.status(500).json({success: false, data: error});
+      } else {
+      response.status(200).json(result);
+      }
+  });
+}
+
+//The following function is a POST route
 function post_review(request, response) {
   /*****************************************
    * POST_REVIEW
@@ -112,9 +127,9 @@ function post_review(request, response) {
           response.status(200).json({success: true});
       }
   });
-
 }
 
+//The following are helper functions that get info from the database
 function get_reviews_from_db(course_id, callback) {
     /***********************************
      * GET_REVIEWS_FROM_DB
@@ -125,8 +140,16 @@ function get_reviews_from_db(course_id, callback) {
      * all of the reviews pertaining to the course given by its id.
      * At the end, we call the callback.  
      ***********************************/
-  //TODO: call database and get result
-  callback(null, null);
+  console.log("Getting Reviews...");
+    pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+      let sql_statement = 'SELECT * FROM review WHERE course_id = $1'
+      let params = [course_id];
+      client.query(sql_statement, params, function(err, result) {
+        done();
+        if (err) { console.error(err); callback(err, null);}
+        else {callback(null, result.rows);}
+      });
+    });
 }
 
 function get_courses_from_db(college_id, callback) {
@@ -139,8 +162,16 @@ function get_courses_from_db(college_id, callback) {
    * all of the courses pertaining to the college given by its id.
    * At the end, we call the callback.  
    ***********************************/
-  //TODO: call database and get result
-  callback(null, null);
+  console.log("Getting Courses...");
+    pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+      let sql_statement = 'SELECT * FROM course WHERE active_flag = TRUE AND college_id = $1'
+      let params = [college_id];
+      client.query(sql_statement, params, function(err, result) {
+        done();
+        if (err) { console.error(err); callback(err, null);}
+        else {callback(null, result.rows);}
+      });
+    });
 }
 
 function post_review_to_db(user_id, course_id, rating, review_text, callback) {
@@ -156,6 +187,36 @@ function post_review_to_db(user_id, course_id, rating, review_text, callback) {
    * the review that the user made to the database. We then execute
    * the callback.
    ******************************************/
-  //TODO: call database and get result
-  callback(null, null);
+  console.log("Posting Review...");
+  pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+    let sql_statement = 'INSERT INTO review (user_id, course_id, rating, review_date, review_text) VALUES ($1, $2, $3, current_date, $4)';
+    let params = [user_id, course_id, rating, review_text];
+    client.query(sql_statement, params, function(err, result) {
+      done();
+      if (err) { console.error(err); callback(err, null);}
+      else {callback(null, result.rows);}
+    });
+  }); 
+}
+
+function get_course_from_db(course_id, callback) {
+  /***************************************************
+   * GET_COURSE_FROM_DB
+   * args:        course_id: the id of the course we want to retrieve.
+   *              callback: The function given to execute when finished.
+   * returns:     Nothing
+   * Desc:        This function connects to the database and gets the information
+   *              pertaining to the course with the given course_id. We then
+   *              execute the callback with an error if applicable and the result.
+   */
+  console.log("Getting Course...");
+  pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+    let sql_statement = 'SELECT * FROM course WHERE id = $1'
+    let params = [course_id];
+    client.query(sql_statement, params, function(err, result) {
+      done();
+      if (err) { console.error(err); callback(err, null);}
+      else {callback(null, result.rows);}
+    });
+  }); 
 }
