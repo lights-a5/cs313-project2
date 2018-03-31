@@ -44,7 +44,6 @@ express()
     }
   });
 }
-module.exports = get_reviews;
   
 function get_colleges(request, response) {
     /**************************************
@@ -57,9 +56,16 @@ function get_colleges(request, response) {
      * result in a JSON and send it using response.
      ****************************************/
     //TODO: call database and get result
+    console.log("Getting Colleges...");
+    pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+      client.query('SELECT college_code, college_name FROM college', function(err, result) {
+        done();
+        if (err) { console.error(err); response.status(500).json({success: false, data: error})}
+        else {response.status(200).json(result.rows)}
+      });
+    });
     response.status(500).json({success: false, data: null});
 }
-module.exports = get_colleges;
 
 function get_courses(request, response) {
    /**************************************
@@ -81,8 +87,6 @@ function get_courses(request, response) {
     }
   });
 }
-
-module.exports = get_courses;
 
 function post_review(request, response) {
   /*****************************************
@@ -110,7 +114,6 @@ function post_review(request, response) {
   });
 
 }
-module.exports = post_review;
 
 function get_reviews_from_db(course_id, callback) {
     /***********************************
@@ -156,4 +159,3 @@ function post_review_to_db(user_id, course_id, rating, review_text, callback) {
   //TODO: call database and get result
   callback(null, null);
 }
-
