@@ -1,26 +1,26 @@
-var cool = require('cool-ascii-faces');
-var pg = require('pg');
-const express = require('express')
-const path = require('path')
-const PORT = process.env.PORT || 5000
+const pg = require('pg');;
+const express = require('express');
+const body_parser = require('body-parser');
+const api = require('api.js');
+const path = require('path');
+const PORT = process.env.PORT || 5000;
 
 express()
   .use(express.static(path.join(__dirname, 'public')))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')
   .get('/', (req, res) => res.render('pages/index'))
-  .get('/cool', function(req, res) {
-    res.send(cool());
+  .get('/get_reviews', function(request, response) {
+    api.get_reviews(request, response);
   })
-  .get('/db', function (request, response) {
-    pg.connect(process.env.DATABASE_URL, function(err, client, done) {
-      client.query('SELECT * FROM test_table', function(err, result) {
-        done();
-        if (err)
-        { console.error(err); response.send("Error " + err); }
-        else
-        { response.render('pages/db', {results: result.rows} ); }
-      });
-    });
+  .get('/get_colleges', function(request, response) {
+    api.get_colleges(request, response);
+  })
+  .get('/get_courses', function(request, response) {
+    api.get_courses(request, response);
+  })
+  .post('/post_review', function (request, response) {
+    api.post_review(request, response);
   })
   .listen(PORT, () => console.log(`Listening on ${ PORT }`));
+
