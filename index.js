@@ -9,7 +9,7 @@ express()
   .use(express.static(path.join(__dirname, 'public')))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')
-  .get('/', (req, res) => res.render('pages/index'))
+  .get('/', get_index)
   .get('/get_reviews', get_reviews)
   .get('/get_colleges', get_colleges)
   .get('/get_courses', get_courses)
@@ -17,18 +17,37 @@ express()
   .post('/post_review', post_review)
   .listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
-  //The following functions are GET functions of the routes
-  function get_reviews(request, response) {
-    /***********************************
-     *  GET_REVIEWS
-     * args:    request: The request sent to the server
-     *          response: The response to be sent back
-     * returns: Nothing
-     * Desc:    This function extracts the course_id from request and sends
-     * it to get_reviews_from_db. In the case that get_reviews_from_db
-     * returns an error, we will send a 500 error. Otherwise, we put the
-     * result into a JSON and send it using response.
-     * *********************************/
+//The following functions are the web page routes
+function get_index(request, response) {
+  /***************************************************
+   * GET_INDEX
+   * args:    request: The request sent to the server
+   *          response: The response to be sent back
+   * returns: Nothing
+   * Desc:    This function calls the get_colleges_from_db function
+   * and gives it the callback to then render the index.ejs using
+   * the information about the colleges.
+   ****************************************************/
+  console.log("Putting together info for index");
+  get_colleges_from_db(function(err, result) {
+    if(err) response.render('pages/uhoh.ejs');
+    else response.render('pages/index.ejs', {colleges: result});
+  });
+}
+
+
+//The following functions are GET functions of the API
+function get_reviews(request, response) {
+ /***********************************
+  *  GET_REVIEWS
+  * args:    request: The request sent to the server
+  *          response: The response to be sent back
+  * returns: Nothing
+  * Desc:    This function extracts the course_id from request and sends
+  * it to get_reviews_from_db. In the case that get_reviews_from_db
+  * returns an error, we will send a 500 error. Otherwise, we put the
+  * result into a JSON and send it using response.
+  * *********************************/
   let course_id = request.query.course_id;
   
   get_reviews_from_db(course_id, function(error, result) {
@@ -41,23 +60,23 @@ express()
 }
   
 function get_colleges(request, response) {
-    /**************************************
-     * GET_COLLEGES
-     * args:      request: The request sent to the server
-     *            response: The response to be sent back
-     * returns:   Nothing
-     * Desc:      This function connects to the database and 
-     * extracts information about all the colleges. We put the
-     * result in a JSON and send it using response.
-     ****************************************/
-    console.log("Getting Colleges...");
-    pg.connect(process.env.DATABASE_URL, function(err, client, done) {
-      client.query('SELECT college_code, college_name FROM college', function(err, result) {
-        done();
-        if (err) { console.error(err); response.status(500).json({success: false, data: error})}
-        else {response.status(200).json(result.rows)}
-      });
-    });
+  /**************************************
+   * GET_COLLEGES
+   * args:      request: The request sent to the server
+   *            response: The response to be sent back
+   * returns:   Nothing
+   * Desc:      This function is the front-facing API for 
+   * get_colleges_from_db. In the case that function returns
+   * an error, we will send a 500 error. Otherwise, we put the 
+   * result into a JSON and send it using response.
+   ****************************************/
+  get_reviews_from_db(course_id, function(error, result) {
+    if (error || result == null) {
+      response.status(500).json({success: false, data: error});
+    } else {
+    response.status(200).json(result);
+    }
+  });
 }
 
 function get_courses(request, response) {
@@ -197,6 +216,25 @@ function post_review_to_db(user_id, course_id, rating, review_text, callback) {
       else {callback(null, result.rows);}
     });
   }); 
+}
+
+function get_colleges_from_db(callback) {
+  /**********************************************************
+   * GET_COLLEGES_FROM_DB
+   * args:      callback: The function given to execute when finished.
+   * returns:   Nothing
+   * Desc:      This function connects to the database and gets the information
+   *            about all colleges in the database. It then executes a callback
+   *            giving error information and the result set.
+   **********************************************************/
+  console.log("Getting Colleges...");
+  pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+    client.query('SELECT * FROM college', function(err, result) {
+      done();
+      if (err) { console.error(err); callback(err, null);}
+      else {callback(null, result.rows);}
+    });
+  });
 }
 
 function get_course_from_db(course_id, callback) {
