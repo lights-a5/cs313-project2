@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 5000;
 
 // SET PATHS
 express()
-  .use(express.static(path.join(__dirname, 'public')))
+  .use(express.static(__dirname + '/public'))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')
   .get('/', get_index)
