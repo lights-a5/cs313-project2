@@ -161,7 +161,7 @@ function get_reviews_from_db(course_id, callback) {
      ***********************************/
   console.log("Getting Reviews...");
     pg.connect(process.env.DATABASE_URL, function(err, client, done) {
-      let sql_statement = 'SELECT * FROM review WHERE course_id = $1'
+      let sql_statement = 'SELECT r.*, u.username FROM review r, system_user u WHERE r.user_id = u.id AND course_id = $1'
       let params = [course_id];
       client.query(sql_statement, params, function(err, result) {
         done();

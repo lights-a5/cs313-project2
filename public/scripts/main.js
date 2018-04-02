@@ -50,10 +50,20 @@ function on_change_course() {
     $('#reviews_box').empty();
     get_from_api('get_reviews', {'course_id': course_id}, (err, res) => {
         for (var i =0; i < res.length; i++) {
-            var reviews_box = document.getElementById('reviews_box');
-            var new_review = document.createElement("div");
-            new_review.textContent = res[i].review_text;
+            var new_review = package_review(res[i].username, res[i].rating, res[i].review_date, res[i].review_text);
             $('#reviews_box').append(new_review);
         }
     })
+}
+
+function package_review(username, rating, review_date, review_text) {
+    var $new_review = $("<div class='container panel panel-default review'></div>");
+    var $top_row = $("<div class='row'></div>");
+    var $name = $("<div class='col-sm-8 name'></div>");
+    $name.append("<h3>" + username + "</h3>");
+    var $rating = $("<div class='col-sm-4 rating'></div>");
+    $rating.append("<h3>" + rating + "/5</h3");
+    $top_row.append($name).append($rating);
+    $new_review.append($top_row).append("<p>" + review_text + "</p>");
+    return $new_review;
 }

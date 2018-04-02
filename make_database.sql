@@ -143,7 +143,7 @@ VALUES
 INSERT INTO review
 ( user_id, course_id, rating, review_date, review_text)
 VALUES
-(3, 2, 4, current_date, 'This was a bit hard but I liked it!');
+(3, 1, 4, current_date, 'This was a bit hard but I liked it!');
 
 INSERT INTO review
 ( user_id, course_id, rating, review_date, review_text)
