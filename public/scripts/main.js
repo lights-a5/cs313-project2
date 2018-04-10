@@ -40,8 +40,39 @@ function get_from_api(method, params = {}, callback) {
     );
 }
 
+function post_to_api(method, params = {}, callback) {
+    $.ajax('/' + method, {
+        method: "POST",
+        data: params,
+        dataType: 'json'
+    }).then(
+        function success(res) {
+            callback(null, res);
+        },
+
+        function fail(data, status) {
+            callback(status, data);
+        }
+    );
+}
+
 $(document).ready(function() {
-    on_change_college();
+    if (document.getElementById("colleges")) on_change_college();
+    if (document.getElementById("login_logout")) {
+        console.log($("#login_logout").text());
+        if ($("#login_logout").text() === '  Login ') {
+            $("#login_logout").click(function () {
+                window.location = '/login';
+            });
+        }
+        else {
+            $("#login_logout").click(function () {
+                post_to_api('logout', {}, (req, res) => {
+                    window.location = '/';
+                });
+            });
+        }
+    }
 });
 
 function on_change_course() {
@@ -66,4 +97,29 @@ function package_review(username, rating, review_date, review_text) {
     $top_row.append($name).append($rating);
     $new_review.append($top_row).append("<p>" + review_text + "</p>");
     return $new_review;
+}
+
+function submit_login() {
+    var username = $("#username").val();
+    var password = $("#userpassword").val();
+    post_to_api('login', {'username': username, 'password': password}, (err, res) => {
+        if (typeof res.redirect == 'string') window.location = res.redirect;
+    });
+}
+
+function submit_register() {
+    var username = $("#username").val();
+    var password = $("#userpassword").val();
+    var email = $("#useremail").val();
+    var first_name = $("#firstname").val();
+    var last_name = $("#lastname").val();
+    post_to_api('create_account', {
+        'username': username,
+        'password': password,
+        'email': email,
+        'firstname': first_name,
+        'lastname': last_name},
+        (err, res) => {
+            if (typeof res.redirect == 'string') window.location = res.redirect;
+    });
 }

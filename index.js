@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const body_parser = require('body-parser');
 const path = require('path');
+const pw_hash = require('password-hash');
 const PORT = process.env.PORT || 5000;
 
 // SET PATHS
@@ -22,10 +23,12 @@ express()
   .get('/get_colleges', get_colleges)
   .get('/get_courses', get_courses)
   .get('/get_course_by_id', get_course_by_id)
-  .get('get_login_status', get_login_status)
+  .get('/login', serve_login_page)
+  .get('/register', serve_register_page)
   .post('/login', handle_login)
   .post('/logout', handle_logout)
   .post('/post_review', verify_login, post_review)
+  .post('/create_account', create_account)
   .listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
 //The following functions are the web page routes
@@ -41,21 +44,31 @@ function get_index(request, response) {
    ****************************************************/
   console.log("Putting together info for index");
   get_colleges_from_db(function(err, result) {
-    if(err) response.render('pages/uhoh.ejs');
-    else response.render('pages/index.ejs', {colleges: result});
+    var render_dict = {};
+    console.log(request.session);
+    if (request.session.username) render_dict.username = request.session.username;
+    else render_dict.username = "";
+    if(err) response.render('pages/uhoh.ejs', render_dict);
+    else {
+      render_dict.colleges = result;
+
+      response.render('pages/index.ejs', render_dict);
+    }
   });
 }
 
+function serve_login_page(request, response) {
+  console.log("Serving login page");
+  response.render('pages/login.ejs', {});
+}
+
+function serve_register_page(request, response) {
+  console.log("Serving register page");
+  response.render('pages/register.ejs', {});
+}
 
 //The following functions are GET functions of the API
 
-function get_login_status(request, response) {
-  if (!request.body.username) {
-    response.status(200).json({is_logged_in: false});
-  } else {
-
-  }
-}
 function get_reviews(request, response) {
  /***********************************
   *  GET_REVIEWS
@@ -140,7 +153,7 @@ function get_course_by_id(request, response) {
   });
 }
 
-//The following function is a POST route
+//The following functions are POST routes
 function post_review(request, response) {
   /*****************************************
    * POST_REVIEW
@@ -160,34 +173,69 @@ function post_review(request, response) {
   post_review_to_db(user_id, course_id, rating, review_text, 
                     function(error, result) {
       if (error || result == null) {
-          response.status(500).json({success: false, data: error});
+          response.status(500).json({'success': false, 'data': error});
       } else {
-          response.status(200).json({success: true});
+          response.status(200).json({'success': true});
       }
   });
 }
 
-function get_user_by_name(username, callback) {
-  /******************************************************
-   * GET_USER_BY_NAME
-   * args:        username: The username we wish to lookup.
-   *              callback: a function to execute when we are done.
-   * returns:     Nothing
-   * Desc:        This function connects to the database and extracts
-   *              the information relating to a user. We call the callback
-   *              passing in this information.
-   *****************************************************/
-  console.log("Getting User...");
-  pg.connect(process.env.DATABASE_URL, function(err, client, done) {
-    let sql_statement = 'SELECT * FROM system_user WHERE username = $1';
-    let params = [username];
-    client.query(sql_statement, params, function(err, result) {
-      done();
-      if (err) { console.error(err); callback(err,null); }
-      else {callback(null, result.rows);}
+function create_account(request, response) {
+  console.log(request.body);
+  if (!request.body.username ||
+      !request.body.password ||
+      !request.body.email    ||
+      !request.body.firstname ||
+      !request.body.lastname) {response.json({success: false}); }
+  else {
+    pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+      let sql_statement = 'INSERT INTO system_user(username, password, email, first_name, last_name) VALUES ($1, $2, $3, $4, $5)';
+      let params = [request.body.username, pw_hash.generate(request.body.password), request.body.email, request.body.firstname, request.body.lastname];
+      client.query(sql_statement, params, function(err, result) {
+        done();
+        if (err) { console.error(err); response.status(500).json({'success': false}); }
+        else { response.status(200).send({'redirect': '/'}); }
+      });
     });
+  }
+}
+
+function handle_login(request, response) {
+  console.log(request.body);
+  var failure_response = {'success': false, 'message': "Incorrect username or password"};
+  if (!request.body.username || !request.body.password) {response.status(401).json(failure_response); return}
+  get_user_by_name(request.body.username, function(err, result) {
+    if (result.length < 1 || !pw_hash.verify(request.body.password, result[0].password)) {
+      response.json(failure_response);
+    } else {
+      request.session.username = result[0].username;
+      request.session.id = result[0].id;
+      console.log(request.session);
+      response.status(200).send({'redirect': '/'});
+    }
   });
 }
+
+function handle_logout(request, response) {
+  var result = {success: false};
+  if (request.session.username) {
+    request.session.destroy();
+    result = {success: true};
+  }
+  response.json(result);
+}
+
+//The following are middleware functions
+function verify_login(request, response, next) {
+  console.log("Verifying Login...");
+  if (request.session.user) {
+    next();
+  } else {
+    var result = {success: false, message: "not_logged_in"};
+    response.status(401).json(result);
+  }
+}
+
 
 //The following are helper functions that get info from the database
 function get_reviews_from_db(course_id, callback) {
@@ -298,4 +346,26 @@ function get_course_from_db(course_id, callback) {
       else {callback(null, result.rows);}
     });
   }); 
+}
+
+function get_user_by_name(username, callback) {
+  /******************************************************
+   * GET_USER_BY_NAME
+   * args:        username: The username we wish to lookup.
+   *              callback: a function to execute when we are done.
+   * returns:     Nothing
+   * Desc:        This function connects to the database and extracts
+   *              the information relating to a user. We call the callback
+   *              passing in this information.
+   *****************************************************/
+  console.log("Getting User...");
+  pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+    let sql_statement = 'SELECT * FROM system_user WHERE username = $1';
+    let params = [username];
+    client.query(sql_statement, params, function(err, result) {
+      done();
+      if (err) { console.error(err); callback(err,null); }
+      else {callback(null, result.rows);}
+    });
+  });
 }
