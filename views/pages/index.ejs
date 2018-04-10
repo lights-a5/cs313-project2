@@ -11,6 +11,8 @@
   </span>
   <% } %>
   <button class="btn btn-success" id='login_logout'> <% if (username) { %> Log Out <% } else { %> Login <% } %></button>
+  <% if (!username) { %>
+  <button class="btn btn-success" id='register'>Register</button> <% } %>
 </nav>
 <h1>BYU-I Course Reviews</h1>
 <select class="selects" id="colleges" onChange="on_change_college();">
@@ -37,21 +39,22 @@
 <div id='input_box'>
   <div class="container panel panel-default">
   <% if (username) { %>
-    <textarea class="form-control" rows="3"></textarea>
+    <textarea class="form-control" rows="3" id="review_text"></textarea>
     <div class="row">
     <div class="col-sm-1">Rating: </div>
-    <div class="col-sm-1"><select class="form-control" id="input_rating">
+    <div class="col-sm-2"><select class="form-control" id="input_rating">
       <option>1</option>
       <option>2</option>
       <option>3</option>
       <option>4</option>
       <option>5</option>
-    </div>
-    
+    </select></div>
+    <button class="btn btn-success" id='post_review_button'>Post Review</button>
     </div>
     </select> <% } %>
   </div>
 </div>
 <% include ../partials/footer.ejs %>
+<script type="text/javascript" src="/scripts/index.js"></script>
 </body>
 </html>

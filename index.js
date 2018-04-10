@@ -166,10 +166,14 @@ function post_review(request, response) {
    * send back the error message. Otherwise, send back true for 
    * success.
    ******************************************/
-  let user_id = request.post.user_id;
-  let course_id = request.post.course_id;
-  let rating = request.post.rating;
-  let review_text = request.post.review_text;
+  let user_id = request.session.user_id;
+  let course_id = request.body.course_id;
+  console.log(request.body);
+  if (request.body.rating > 5 || request.body.rating < 1) {
+    response.status(400).json({'success': false});
+    return;
+  } else var rating = request.body.rating;
+  let review_text = request.body.review_text;
   post_review_to_db(user_id, course_id, rating, review_text, 
                     function(error, result) {
       if (error || result == null) {
@@ -194,14 +198,25 @@ function create_account(request, response) {
       client.query(sql_statement, params, function(err, result) {
         done();
         if (err) { console.error(err); response.status(500).json({'success': false}); }
-        else { response.status(200).send({'redirect': '/'}); }
+        else {
+          get_user_by_name(request.body.username, function(err, result) {
+            if (result.length < 1 || !pw_hash.verify(request.body.password, result[0].password)) {
+              response.json(failure_response);
+            } else {
+              request.session.username = result[0].username;
+              request.session.user_id = result[0].id;
+              console.log("ID of person: " + request.session.user_id);
+              console.log(request.session);
+              response.status(200).send({'redirect': '/'});
+            }
+          });
+         }
       });
     });
   }
 }
 
 function handle_login(request, response) {
-  console.log(request.body);
   var failure_response = {'success': false, 'message': "Incorrect username or password"};
   if (!request.body.username || !request.body.password) {response.status(401).json(failure_response); return}
   get_user_by_name(request.body.username, function(err, result) {
@@ -209,7 +224,8 @@ function handle_login(request, response) {
       response.json(failure_response);
     } else {
       request.session.username = result[0].username;
-      request.session.id = result[0].id;
+      request.session.user_id = result[0].id;
+      console.log("ID of person: " + request.session.user_id);
       console.log(request.session);
       response.status(200).send({'redirect': '/'});
     }
@@ -228,7 +244,7 @@ function handle_logout(request, response) {
 //The following are middleware functions
 function verify_login(request, response, next) {
   console.log("Verifying Login...");
-  if (request.session.user) {
+  if (request.session.username) {
     next();
   } else {
     var result = {success: false, message: "not_logged_in"};

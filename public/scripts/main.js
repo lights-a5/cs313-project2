@@ -56,25 +56,6 @@ function post_to_api(method, params = {}, callback) {
     );
 }
 
-$(document).ready(function() {
-    if (document.getElementById("colleges")) on_change_college();
-    if (document.getElementById("login_logout")) {
-        console.log($("#login_logout").text());
-        if ($("#login_logout").text() === '  Login ') {
-            $("#login_logout").click(function () {
-                window.location = '/login';
-            });
-        }
-        else {
-            $("#login_logout").click(function () {
-                post_to_api('logout', {}, (req, res) => {
-                    window.location = '/';
-                });
-            });
-        }
-    }
-});
-
 function on_change_course() {
     var course_select = document.getElementById('courses');
     var course_id = course_select.options[course_select.options.selectedIndex].value;
