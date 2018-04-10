@@ -17,6 +17,9 @@ $(document).ready(function() {
             window.location = '/register';
         });
     }
+    if ($("#post_review_button").length > 0) {
+        $("#post_review_button").click(submit_post);
+    }
 });
 
 function submit_post() {
