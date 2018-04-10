@@ -1,11 +1,19 @@
-const pg = require('pg');;
+const pg = require('pg');
 const express = require('express');
+const session = require('express-session');
 const body_parser = require('body-parser');
 const path = require('path');
 const PORT = process.env.PORT || 5000;
 
 // SET PATHS
 express()
+  .use(body_parser.json() )
+  .use(body_parser.urlencoded({ extended: true}))
+  .use(session({
+    secret: '179-tgb45-secret-session',
+    resave: false,
+    saveUninitialized: true
+  }))
   .use(express.static(__dirname + '/public'))
   .set('views', path.join(__dirname, 'views'))
   .set('view engine', 'ejs')
@@ -14,7 +22,10 @@ express()
   .get('/get_colleges', get_colleges)
   .get('/get_courses', get_courses)
   .get('/get_course_by_id', get_course_by_id)
-  .post('/post_review', post_review)
+  .get('get_login_status', get_login_status)
+  .post('/login', handle_login)
+  .post('/logout', handle_logout)
+  .post('/post_review', verify_login, post_review)
   .listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
 //The following functions are the web page routes
@@ -37,6 +48,14 @@ function get_index(request, response) {
 
 
 //The following functions are GET functions of the API
+
+function get_login_status(request, response) {
+  if (!request.body.username) {
+    response.status(200).json({is_logged_in: false});
+  } else {
+
+  }
+}
 function get_reviews(request, response) {
  /***********************************
   *  GET_REVIEWS
@@ -148,6 +167,28 @@ function post_review(request, response) {
   });
 }
 
+function get_user_by_name(username, callback) {
+  /******************************************************
+   * GET_USER_BY_NAME
+   * args:        username: The username we wish to lookup.
+   *              callback: a function to execute when we are done.
+   * returns:     Nothing
+   * Desc:        This function connects to the database and extracts
+   *              the information relating to a user. We call the callback
+   *              passing in this information.
+   *****************************************************/
+  console.log("Getting User...");
+  pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+    let sql_statement = 'SELECT * FROM system_user WHERE username = $1';
+    let params = [username];
+    client.query(sql_statement, params, function(err, result) {
+      done();
+      if (err) { console.error(err); callback(err,null); }
+      else {callback(null, result.rows);}
+    });
+  });
+}
+
 //The following are helper functions that get info from the database
 function get_reviews_from_db(course_id, callback) {
     /***********************************
@@ -160,15 +201,15 @@ function get_reviews_from_db(course_id, callback) {
      * At the end, we call the callback.  
      ***********************************/
   console.log("Getting Reviews...");
-    pg.connect(process.env.DATABASE_URL, function(err, client, done) {
-      let sql_statement = 'SELECT r.*, u.username FROM review r, system_user u WHERE r.user_id = u.id AND course_id = $1'
-      let params = [course_id];
-      client.query(sql_statement, params, function(err, result) {
-        done();
-        if (err) { console.error(err); callback(err, null);}
-        else {callback(null, result.rows);}
-      });
+  pg.connect(process.env.DATABASE_URL, function(err, client, done) {
+    let sql_statement = 'SELECT r.*, u.username FROM review r, system_user u WHERE r.user_id = u.id AND course_id = $1'
+    let params = [course_id];
+    client.query(sql_statement, params, function(err, result) {
+      done();
+      if (err) { console.error(err); callback(err, null);}
+      else {callback(null, result.rows);}
     });
+  });
 }
 
 function get_courses_from_db(college_id, callback) {
