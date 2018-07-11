@@ -1,1 +1,1 @@
-A project for CS313
+This repo contains the Node project I worked on for my Web Development II class. It contains a sql file to set up a database, an API to interact with the database, and paths through which websites are served.
